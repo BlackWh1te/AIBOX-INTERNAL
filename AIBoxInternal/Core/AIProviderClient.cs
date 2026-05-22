@@ -350,7 +350,7 @@ namespace AIBoxInternal.Core
 
             // Apply context window truncation BEFORE rate limit check
             int systemTokens = EstimateTokens(GetSystemPrompt(k, brain));
-            int availableContextTokens = config.ContextWindowTokens - systemTokens - config.MaxResponseTokens - 100; // 100 token safety margin
+            int availableContextTokens = Math.Max(0, config.ContextWindowTokens - systemTokens - config.MaxResponseTokens - 100); // 100 token safety margin
             string truncatedPrompt = TruncatePromptToTokenBudget(prompt, availableContextTokens);
 
             // Check per-kingdom cooldown
@@ -436,6 +436,7 @@ namespace AIBoxInternal.Core
         /// </summary>
         private string TruncatePromptToTokenBudget(string prompt, int maxTokens)
         {
+            if (maxTokens <= 0) return string.Empty;
             if (EstimateTokens(prompt) <= maxTokens) return prompt;
 
             // Strategy: progressively strip verbose sections in order of least importance
