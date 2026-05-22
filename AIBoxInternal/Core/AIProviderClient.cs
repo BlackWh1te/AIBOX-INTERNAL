@@ -741,6 +741,138 @@ namespace AIBoxInternal.Core
             }
         }
 
+        // ==================== CONNECTION TEST ====================
+
+        /// <summary>
+        /// Tests connectivity to the configured AI provider.
+        /// onResult(succeeded, message, latencyMs)
+        /// </summary>
+        public IEnumerator TestConnection(KingdomConfig config, Action<bool, string, float> onResult)
+        {
+            float startTime = Time.realtimeSinceStartup;
+            string testPrompt = "Reply with exactly the word: OK";
+
+            if (config.Provider == AIProvider.Internal)
+            {
+                onResult?.Invoke(true, "Internal AI is always available.", 0f);
+                yield break;
+            }
+
+            if (config.Provider == AIProvider.Ollama)
+            {
+                string url = config.Endpoint.TrimEnd('/') + "/api/generate";
+                OllamaRequest req = new OllamaRequest { model = config.Model, prompt = testPrompt, stream = false };
+                string jsonReq = JsonUtility.ToJson(req);
+
+                using (UnityWebRequest www = new UnityWebRequest(url, "POST"))
+                {
+                    byte[] bodyRaw = Encoding.UTF8.GetBytes(jsonReq);
+                    www.uploadHandler = new UploadHandlerRaw(bodyRaw);
+                    www.downloadHandler = new DownloadHandlerBuffer();
+                    www.SetRequestHeader("Content-Type", "application/json");
+                    yield return www.SendWebRequest();
+
+                    float latency = (Time.realtimeSinceStartup - startTime) * 1000f;
+                    if (www.result == UnityWebRequest.Result.Success)
+                    {
+                        var res = JsonUtility.FromJson<OllamaResponse>(www.downloadHandler.text);
+                        if (!string.IsNullOrEmpty(res.response))
+                            onResult?.Invoke(true, $"Connected to Ollama model '{config.Model}'. Latency: {latency:F0}ms", latency);
+                        else
+                            onResult?.Invoke(false, "Ollama responded but gave empty output. Check model name.", latency);
+                    }
+                    else
+                    {
+                        onResult?.Invoke(false, $"Ollama connection failed: {www.error}", latency);
+                    }
+                }
+                yield break;
+            }
+
+            if (config.Provider == AIProvider.OpenAI)
+            {
+                OpenAIRequest req = new OpenAIRequest
+                {
+                    model = config.Model,
+                    max_tokens = 5,
+                    messages = new List<OpenAIMessage> { new OpenAIMessage { role = "user", content = testPrompt } }
+                };
+                string jsonReq = JsonUtility.ToJson(req);
+
+                using (UnityWebRequest www = new UnityWebRequest("https://api.openai.com/v1/chat/completions", "POST"))
+                {
+                    byte[] bodyRaw = Encoding.UTF8.GetBytes(jsonReq);
+                    www.uploadHandler = new UploadHandlerRaw(bodyRaw);
+                    www.downloadHandler = new DownloadHandlerBuffer();
+                    www.SetRequestHeader("Content-Type", "application/json");
+                    www.SetRequestHeader("Authorization", "Bearer " + config.ApiKey);
+                    yield return www.SendWebRequest();
+
+                    float latency = (Time.realtimeSinceStartup - startTime) * 1000f;
+                    if (www.result == UnityWebRequest.Result.Success)
+                    {
+                        var res = JsonUtility.FromJson<OpenAIResponse>(www.downloadHandler.text);
+                        if (res.choices != null && res.choices.Count > 0 && !string.IsNullOrEmpty(res.choices[0].message.content))
+                            onResult?.Invoke(true, $"Connected to OpenAI '{config.Model}'. Latency: {latency:F0}ms", latency);
+                        else
+                            onResult?.Invoke(false, "OpenAI responded but gave empty output. Check model name.", latency);
+                    }
+                    else
+                    {
+                        string err = www.error;
+                        if (string.IsNullOrEmpty(err)) err = "Unknown error. Check API key.";
+                        onResult?.Invoke(false, $"OpenAI connection failed: {err}", latency);
+                    }
+                }
+                yield break;
+            }
+
+            if (config.Provider == AIProvider.Claude)
+            {
+                ClaudeRequest req = new ClaudeRequest
+                {
+                    model = config.Model,
+                    max_tokens = 5,
+                    messages = new List<OpenAIMessage> { new OpenAIMessage { role = "user", content = testPrompt } }
+                };
+                string jsonReq = JsonUtility.ToJson(req);
+
+                using (UnityWebRequest www = new UnityWebRequest("https://api.anthropic.com/v1/messages", "POST"))
+                {
+                    byte[] bodyRaw = Encoding.UTF8.GetBytes(jsonReq);
+                    www.uploadHandler = new UploadHandlerRaw(bodyRaw);
+                    www.downloadHandler = new DownloadHandlerBuffer();
+                    www.SetRequestHeader("Content-Type", "application/json");
+                    www.SetRequestHeader("x-api-key", config.ApiKey);
+                    www.SetRequestHeader("anthropic-version", "2023-06-01");
+                    yield return www.SendWebRequest();
+
+                    float latency = (Time.realtimeSinceStartup - startTime) * 1000f;
+                    if (www.result == UnityWebRequest.Result.Success)
+                    {
+                        var res = JsonUtility.FromJson<ClaudeResponse>(www.downloadHandler.text);
+                        string text = "";
+                        if (res.content != null)
+                            foreach (var block in res.content)
+                                if (block.type == "text" && !string.IsNullOrEmpty(block.text)) text += block.text;
+                        if (!string.IsNullOrEmpty(text))
+                            onResult?.Invoke(true, $"Connected to Claude '{config.Model}'. Latency: {latency:F0}ms", latency);
+                        else
+                            onResult?.Invoke(false, "Claude responded but gave empty output. Check model name.", latency);
+                    }
+                    else
+                    {
+                        string err = www.error;
+                        if (string.IsNullOrEmpty(err)) err = "Unknown error. Check API key.";
+                        onResult?.Invoke(false, $"Claude connection failed: {err}", latency);
+                    }
+                }
+                yield break;
+            }
+
+            onResult?.Invoke(false, "Unknown provider.", 0f);
+        }
+
         private IEnumerator SendClaudeChat(string json, KingdomConfig config, Kingdom k, KingdomBrain brain, Action<string> onComplete)
         {
             using (UnityWebRequest www = new UnityWebRequest("https://api.anthropic.com/v1/messages", "POST"))

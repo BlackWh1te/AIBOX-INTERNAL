@@ -1079,6 +1079,14 @@ namespace AIBoxInternal.UI
         private AISetupMode _aiSetupMode = AISetupMode.Global;
         private Kingdom _selectedKingdomForConfig = null;
 
+        // Test connection status
+        private bool _isTestingGlobal = false;
+        private string _globalTestMessage = "";
+        private bool _globalTestSuccess = false;
+        private bool _isTestingPerKingdom = false;
+        private string _perKingdomTestMessage = "";
+        private bool _perKingdomTestSuccess = false;
+
         private void DrawConfig()
         {
             var brains = MainController.Instance.Engine.GetBrains();
@@ -1144,6 +1152,29 @@ namespace AIBoxInternal.UI
                 {
                     GUILayout.Label("API Key:", _labelStyle);
                     g.ApiKey = GUILayout.PasswordField(g.ApiKey, '*', GUILayout.Height(25));
+                }
+
+                // Test Connection Button (Global)
+                GUILayout.BeginHorizontal();
+                GUI.enabled = !_isTestingGlobal;
+                if (GUILayout.Button(_isTestingGlobal ? T("Testing...", "Тестирование...") : T("Test Connection", "Проверить Соединение"), _buttonStyle))
+                {
+                    _isTestingGlobal = true;
+                    _globalTestMessage = "";
+                    var testConfig = g.ToKingdomConfig();
+                    StartCoroutine(Core.AIProviderClient.Instance.TestConnection(testConfig, (success, msg, latency) => {
+                        _globalTestSuccess = success;
+                        _globalTestMessage = msg;
+                        _isTestingGlobal = false;
+                    }));
+                }
+                GUI.enabled = true;
+                GUILayout.EndHorizontal();
+
+                if (!string.IsNullOrEmpty(_globalTestMessage))
+                {
+                    string color = _globalTestSuccess ? "#66ff66" : "#ff6666";
+                    GUILayout.Label($"<color={color}>{EscapeRichText(_globalTestMessage)}</color>", _labelStyle);
                 }
 
                 GUILayout.Space(5);
@@ -1300,6 +1331,28 @@ namespace AIBoxInternal.UI
                 {
                     GUILayout.Label("API Key:", _labelStyle);
                     config.ApiKey = GUILayout.PasswordField(config.ApiKey, '*', GUILayout.Height(25));
+                }
+
+                // Test Connection Button (Per-Kingdom)
+                GUILayout.BeginHorizontal();
+                GUI.enabled = !_isTestingPerKingdom;
+                if (GUILayout.Button(_isTestingPerKingdom ? T("Testing...", "Тестирование...") : T("Test Connection", "Проверить Соединение"), _buttonStyle))
+                {
+                    _isTestingPerKingdom = true;
+                    _perKingdomTestMessage = "";
+                    StartCoroutine(Core.AIProviderClient.Instance.TestConnection(config, (success, msg, latency) => {
+                        _perKingdomTestSuccess = success;
+                        _perKingdomTestMessage = msg;
+                        _isTestingPerKingdom = false;
+                    }));
+                }
+                GUI.enabled = true;
+                GUILayout.EndHorizontal();
+
+                if (!string.IsNullOrEmpty(_perKingdomTestMessage))
+                {
+                    string color = _perKingdomTestSuccess ? "#66ff66" : "#ff6666";
+                    GUILayout.Label($"<color={color}>{EscapeRichText(_perKingdomTestMessage)}</color>", _labelStyle);
                 }
 
                 GUILayout.Space(5);
