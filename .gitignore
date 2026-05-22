@@ -1,0 +1,38 @@
+# WorldBox Game Files (copyrighted, do not distribute)
+Assembly-CSharp/
+Assembly-CSharp.sln
+dnSpy/
+worldbox_Data/
+worldbox.exe
+worldbox*
+steam_appid.txt
+discord_game_sdk.dll
+MonoBleedingEdge/
+
+# Build artifacts
+bin/
+obj/
+*.exe
+*.rar
+
+# IDE / Agent temp files
+.claude/
+.sixth/
+scratch/
+geninbox_*/
+geninbox_*.rar
+inspect*.ps1
+InspectApi.cs
+test.cs
+test.exe
+PROMT.txt
+cost_report*.txt
+nul
+
+# Agent / Editor state
+.cursor/
+.codeium/
+
+# OS files
+.DS_Store
+Thumbs.db

@@ -1,0 +1,9 @@
+{
+    "name": "AIBox Internal",
+    "author": "BlackW1the",
+    "version": "2.1.0",
+    "description": "Grand Strategy AI Engine - AI-driven kingdoms with diplomacy, economy, espionage, and external LLM support (Ollama/GPT/Claude)",
+    "GUID": "com.aibox.internal",
+    "entry_class": "AIBoxInternal.ModEntry",
+    "target_api": "NeoModLoader"
+}
